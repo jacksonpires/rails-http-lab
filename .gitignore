@@ -1,0 +1,8 @@
+/.bundle/
+/Gemfile.lock
+/pkg/
+/spec/dummy/log/
+/spec/dummy/tmp/
+/spec/dummy/docs/http-lab/
+/spec/fixtures/bruno_corpus/
+.DS_Store

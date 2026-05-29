@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Rails HTTP Lab</title>
+    <meta name="rhl-base" content="<%= request.script_name %>">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag if respond_to?(:csp_meta_tag) %>
+    <%= stylesheet_link_tag "rails_http_lab/application", media: "all" %>
+  </head>
+  <body class="rhl-body">
+    <%= yield %>
+    <%= javascript_include_tag "rails_http_lab/application", defer: true %>
+  </body>
+</html>

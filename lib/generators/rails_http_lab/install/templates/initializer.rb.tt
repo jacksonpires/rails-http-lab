@@ -1,0 +1,20 @@
+require "rails_http_lab"
+
+RailsHttpLab.configure do |c|
+  # Where the UI mounts. Default: /rails/http-lab
+  # c.mount_path = "/rails/http-lab"
+
+  # Where collections are stored. Default: Rails.root/docs/http-lab
+  # c.storage_path = Rails.root.join("docs", "http-lab")
+
+  # Rails environments where the engine is reachable. Default: [:development]
+  # Production requires an authenticator (see below) or the engine will refuse to boot.
+  # c.enabled_envs = %i[development]
+
+  # Optional gate. Receives the request object; return truthy to allow.
+  # c.authenticator = ->(request) { request.session[:admin] }
+
+  # Executor limits.
+  # c.executor_timeout  = 30          # seconds
+  # c.executor_max_body = 10 * 1024 * 1024
+end

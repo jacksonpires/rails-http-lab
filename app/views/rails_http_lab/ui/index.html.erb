@@ -1,0 +1,103 @@
+<div class="rhl-app" id="rhl-app">
+  <header class="rhl-topbar">
+    <div class="rhl-topbar__brand">Rails HTTP Lab</div>
+    <div class="rhl-topbar__env">
+      <button class="rhl-btn rhl-btn--ghost" id="rhl-clear-cache" title="Clear locally cached drafts and responses (does not touch saved .bru files)">Clear cache</button>
+      <label for="rhl-env-select">Environment</label>
+      <select id="rhl-env-select">
+        <option value="">(none)</option>
+      </select>
+      <button class="rhl-btn rhl-btn--ghost" id="rhl-env-edit" title="Edit environments">Edit</button>
+    </div>
+  </header>
+
+  <main class="rhl-main">
+    <aside class="rhl-sidebar">
+      <div class="rhl-sidebar__header">
+        <span>Collections</span>
+        <button class="rhl-iconbtn" id="rhl-new-collection" title="New collection">+</button>
+      </div>
+      <div class="rhl-sidebar__tree" id="rhl-tree"><div class="rhl-tree-empty">Loading…</div></div>
+    </aside>
+
+    <section class="rhl-pane">
+      <div class="rhl-pane__empty" id="rhl-empty">
+        <p>Select a request from the sidebar. Use <strong>+</strong> to create a new collection, then add folders and requests via the <strong>⋯</strong> menu on each folder. Rename and delete are available from the <strong>⋯</strong> menu on folders and requests.</p>
+        <p class="rhl-tip">
+          <strong>Tip — environment variables:</strong>
+          write <code>{{var_name}}</code> in any field (URL, headers, query, body, auth) to interpolate from the active environment.
+          For example: <code>{{baseUrl}}/v0/users</code>, <code>Authorization: Bearer {{token}}</code>.
+          Pick an environment in the top-right and manage them with the <strong>Edit</strong> button.
+        </p>
+      </div>
+      <div class="rhl-pane__editor" id="rhl-editor" hidden>
+        <div class="rhl-request-bar">
+          <select class="rhl-verb" id="rhl-verb">
+            <option>GET</option><option>POST</option><option>PUT</option>
+            <option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option>
+          </select>
+          <input type="text" class="rhl-url" id="rhl-url" placeholder="https://…">
+          <button class="rhl-btn rhl-btn--send" id="rhl-send">Send</button>
+          <button class="rhl-btn" id="rhl-save">Save</button>
+        </div>
+
+        <nav class="rhl-tabs" id="rhl-tabs">
+          <button class="rhl-tab is-active" data-tab="params">Params</button>
+          <button class="rhl-tab" data-tab="headers">Headers</button>
+          <button class="rhl-tab" data-tab="body">Body</button>
+          <button class="rhl-tab" data-tab="auth">Auth</button>
+          <button class="rhl-tab" data-tab="vars">Vars</button>
+          <button class="rhl-tab" data-tab="script">Script</button>
+          <button class="rhl-tab" data-tab="tests">Tests</button>
+          <button class="rhl-tab" data-tab="docs">Docs</button>
+        </nav>
+
+        <div class="rhl-split">
+          <div class="rhl-tab-panel" id="rhl-panel"></div>
+          <div class="rhl-splitter" id="rhl-splitter" title="Drag to resize"></div>
+          <div class="rhl-response" id="rhl-response">
+            <div class="rhl-response__header">
+              <nav class="rhl-response__tabs" id="rhl-response-tabs">
+                <button class="rhl-response-tab is-active" data-rtab="body">Response</button>
+                <button class="rhl-response-tab" data-rtab="pretty">Pretty</button>
+                <button class="rhl-response-tab" data-rtab="headers">Headers<span class="rhl-response-tab__count" id="rhl-response-headers-count" hidden></span></button>
+                <button class="rhl-response-tab" data-rtab="curl">cURL</button>
+              </nav>
+              <div class="rhl-response__meta">
+                <span id="rhl-response-status">Ready</span>
+                <span id="rhl-response-time"></span>
+                <span id="rhl-response-size"></span>
+              </div>
+            </div>
+            <pre class="rhl-response__body" id="rhl-response-body">Click Send to execute the request.</pre>
+            <pre class="rhl-response__body" id="rhl-response-pretty" hidden></pre>
+            <div class="rhl-response__headers" id="rhl-response-headers" hidden></div>
+            <pre class="rhl-response__body" id="rhl-response-curl" hidden></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="rhl-modal" id="rhl-env-modal" hidden>
+    <div class="rhl-modal__backdrop" data-close="1"></div>
+    <div class="rhl-modal__dialog">
+      <div class="rhl-modal__header">
+        <h2>Environments</h2>
+        <button class="rhl-iconbtn" id="rhl-env-modal-close" title="Close">×</button>
+      </div>
+      <div class="rhl-modal__body">
+        <div class="rhl-envs-list" id="rhl-envs-list"></div>
+        <div class="rhl-envs-editor" id="rhl-envs-editor">
+          <em>Select an environment on the left.</em>
+        </div>
+      </div>
+      <div class="rhl-modal__footer">
+        Reference these variables anywhere in a request with <code>{{name}}</code>.
+        Example: a variable <code>baseUrl = http://localhost:3000</code> used in the URL as
+        <code>{{baseUrl}}/v0/users</code> resolves to <code>http://localhost:3000/v0/users</code>
+        when the environment is active.
+      </div>
+    </div>
+  </div>
+</div>
