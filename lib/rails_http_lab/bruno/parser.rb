@@ -5,9 +5,10 @@ module RailsHttpLab
   module Bruno
     # Parses Bruno .bru files into a Document of ordered Blocks.
     #
-    # Two content modes:
-    #   - :kv  — every line is "  key: value" (2-space indent), one pair per line.
-    #   - :raw — opaque body, preserved verbatim. Used for body:json, body:text,
+    # Three content modes:
+    #   - :kv   — every line is "  key: value" (2-space indent), one pair per line.
+    #   - :list — `name [ ... ]` (e.g. `vars:secret`), body preserved verbatim.
+    #   - :raw  — opaque body, preserved verbatim. Used for body:json, body:text,
     #            body:xml, body:graphql, body:graphql:vars, body:sparql,
     #            script:pre-request, script:post-response, tests, docs.
     #
@@ -29,6 +30,8 @@ module RailsHttpLab
 
       # name = letters/digits/_/- with optional colon-delimited variants
       BLOCK_OPEN_RE = /\A([a-zA-Z][\w-]*(?::[\w-]+)*)\s*\{\s*\z/
+      # List blocks, e.g. the `vars:secret [ ... ]` Bruno writes in environments.
+      LIST_OPEN_RE  = /\A([a-zA-Z][\w-]*(?::[\w-]+)*)\s*\[\s*\z/
 
       def self.parse(source)
         new(source).parse
@@ -67,6 +70,9 @@ module RailsHttpLab
             else
               blocks << parse_kv_block(name)
             end
+          elsif (m = line.match(LIST_OPEN_RE))
+            @i += 1
+            blocks << parse_list_block(m[1])
           else
             # If we got here we hit something we don't understand. To stay forgiving,
             # skip it; alternatively raise. We raise so callers know their file is off.
@@ -157,6 +163,20 @@ module RailsHttpLab
           i += 1
         end
         in_triple || depth > 0
+      end
+
+      # Reads until a line that is exactly "]" (Bruno's convention). Item lines
+      # are kept verbatim so the block round-trips byte-for-byte.
+      def parse_list_block(name)
+        content_lines = []
+        while @i < @lines.length
+          line = @lines[@i]
+          @i += 1
+          return Block.new(name: name, mode: :list, raw: content_lines.join("\n")) if line.strip == "]"
+          content_lines << line
+        end
+
+        raise ParseError, "unterminated list block #{name.inspect} (missing closing ']')"
       end
 
       # Counts braces to find matching '}'. Body content can include arbitrary braces

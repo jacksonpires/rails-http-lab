@@ -4,7 +4,7 @@ In-app HTTP request lab for Rails. Mounts a UI at `/rails/http-lab` and persists
 
 No external app, no separate workspace — your requests live next to the code that serves them, version-controlled in `docs/http-lab/`.
 
-![Rails HTTP Lab](https://raw.githubusercontent.com/jacksonpires/rails-http-lab/main/docs/rails-http-lab.png)
+![Rails HTTP Lab demo: browsing a collection, sending requests with an environment, editing params, JSON body with bearer auth, cURL export and environments](https://raw.githubusercontent.com/jacksonpires/rails-http-lab/main/docs/rails-http-lab.gif)
 
 ## Why
 

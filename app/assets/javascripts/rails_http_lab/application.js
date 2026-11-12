@@ -86,13 +86,25 @@
   function normalizedSource(doc) {
     if (!doc) return "";
     const blocks = (doc.blocks || []).filter((b) => {
-      if (b.mode === "raw") return (b.raw || "").trim() !== "";
+      if (b.mode === "raw" || b.mode === "list") return (b.raw || "").trim() !== "";
       const pairs = (b.pairs || []).filter(([k, v]) =>
         (k || "").trim() !== "" || (v || "").trim() !== "");
       return pairs.length > 0;
     });
     return serializeDoc({ blocks });
   }
+  // Viewing a tab lazily injects an empty block (e.g. `params:query {}`).
+  // Drop those before writing/sending so they don't pollute the .bru file —
+  // but keep empty blocks that were already on disk, for byte-stable round-trip.
+  function isEmptyBlock(b) {
+    if (b.mode === "raw" || b.mode === "list") return (b.raw || "").trim() === "";
+    return !(b.pairs || []).some(([k, v]) => (k || "").trim() !== "" || (v || "").trim() !== "");
+  }
+  function persistableDoc(session) {
+    const onDisk = new Set((session.savedDoc?.blocks || []).map((b) => b.name));
+    return { blocks: (session.doc.blocks || []).filter((b) => !isEmptyBlock(b) || onDisk.has(b.name)) };
+  }
+
   function isDirty(session) {
     if (!session) return false;
     return normalizedSource(session.doc) !== normalizedSource(session.savedDoc);
@@ -201,10 +213,11 @@
   // ---------- .bru source serializer (client-side) ----------
   function serializeDoc(doc) {
     return (doc.blocks || []).map((b) => {
-      if (b.mode === "raw") {
+      if (b.mode === "raw" || b.mode === "list") {
+        const [open, close] = b.mode === "list" ? ["[", "]"] : ["{", "}"];
         const body = b.raw || "";
         const tail = body.endsWith("\n") || body === "" ? "" : "\n";
-        return `${b.name} {\n${body}${tail}}\n`;
+        return `${b.name} ${open}\n${body}${tail}${close}\n`;
       }
       const lines = (b.pairs || []).map(([k, v]) => `  ${k}: ${v}`).join("\n");
       return `${b.name} {\n${lines}${lines ? "\n" : ""}}\n`;
@@ -300,6 +313,7 @@
     const s = state.sessions.get(hydratedKey);
     if (!s) return;
     state.currentKey = hydratedKey;
+    ensureExpanded(parentDir(hydratedKey));  // don't restore into a collapsed folder
     showEditorForSession(s);
   }
 
@@ -678,6 +692,7 @@
 
   function renderKvTab(panel, blockName, placeholder) {
     const block = ensureKvBlock(blockName);
+    const changed = blockName === "params:query" ? syncUrlFromParams : () => {};
     const table = ce("table", { class: "rhl-kv-table" });
     const thead = ce("thead", {}, ce("tr", {}, ce("th", {}, "Name"), ce("th", {}, "Value"), ce("th", {})));
     const tbody = ce("tbody");
@@ -688,15 +703,15 @@
       const tr = ce("tr");
       tr.appendChild(ce("td", {}, ce("input", {
         value: pair[0] || "", placeholder,
-        oninput: (e) => { block.pairs[i][0] = e.target.value; }
+        oninput: (e) => { block.pairs[i][0] = e.target.value; changed(); }
       })));
       tr.appendChild(ce("td", {}, ce("input", {
         value: pair[1] || "", placeholder: "value",
-        oninput: (e) => { block.pairs[i][1] = e.target.value; }
+        oninput: (e) => { block.pairs[i][1] = e.target.value; changed(); }
       })));
       tr.appendChild(ce("td", { class: "rhl-kv-table__del" }, ce("button", {
         class: "rhl-iconbtn",
-        onclick: () => { block.pairs.splice(i, 1); onDocEdited(); renderPanel(); }
+        onclick: () => { block.pairs.splice(i, 1); changed(); onDocEdited(); renderPanel(); }
       }, "×")));
       tbody.appendChild(tr);
     });
@@ -826,6 +841,40 @@
     }
   }
 
+  // ---------- URL <-> params:query sync ----------
+  // Bruno keeps the URL's query string and the params:query block mirrored
+  // (and only sends the URL), so edits on either side must update the other.
+  // Disabled params (`~key`) live only in the block, never in the URL.
+  function splitUrl(url) {
+    const i = url.indexOf("?");
+    return i < 0 ? [url, ""] : [url.slice(0, i), url.slice(i + 1)];
+  }
+  function syncUrlFromParams() {
+    if (!currentDoc()) return;
+    const block = findBlock(currentDoc(), "params:query");
+    const enabled = (block?.pairs || []).filter(([k]) => k && !k.startsWith("~"));
+    const [base] = splitUrl($("#rhl-url").value);
+    const qs = enabled.map(([k, v]) => `${k}=${v || ""}`).join("&");
+    const url = qs ? `${base}?${qs}` : base;
+    $("#rhl-url").value = url;
+    setVerbPair("url", url);
+  }
+  function syncParamsFromUrl() {
+    const doc = currentDoc();
+    if (!doc) return;
+    const [, qs] = splitUrl($("#rhl-url").value);
+    const fromUrl = qs.split("&").filter(Boolean).map((part) => {
+      const i = part.indexOf("=");
+      return i < 0 ? [part, ""] : [part.slice(0, i), part.slice(i + 1)];
+    });
+    const existing = findBlock(doc, "params:query");
+    if (!existing && fromUrl.length === 0) return;
+    const block = existing || ensureKvBlock("params:query");
+    const disabled = block.pairs.filter(([k]) => (k || "").startsWith("~"));
+    block.pairs = [...fromUrl, ...disabled];
+    if (activeSession()?.activeTab === "params") renderPanel();
+  }
+
   function formRow(label, block, field) {
     const pair = block.pairs.find(([k]) => k === field);
     const input = ce("input", {
@@ -885,7 +934,7 @@
     state.envName = envName;
     try {
       const resp = await api("POST", "/run", {
-        source: serializeDoc(session.doc),
+        source: serializeDoc(persistableDoc(session)),
         environment: envName
       });
       session.response = resp;
@@ -910,14 +959,14 @@
       if (!path.endsWith(".bru")) path += ".bru";
     }
     try {
-      await api("PUT", `/requests/${encodePath(path)}`, { source: serializeDoc(session.doc) });
+      await api("PUT", `/requests/${encodePath(path)}`, { source: serializeDoc(persistableDoc(session)) });
       if (path !== session.path) {
         state.sessions.delete(session.path);
         session.path = path;
         state.sessions.set(path, session);
         state.currentKey = path;
       }
-      session.savedDoc = cloneDoc(session.doc);  // now clean
+      session.savedDoc = cloneDoc(persistableDoc(session));  // now clean (matches disk)
       session._wasDirty = false;
       ensureExpanded(parentDir(path));
       await loadTree();
@@ -1300,7 +1349,11 @@
 
     // Keep verb/url synced into the active doc as the user types.
     $("#rhl-verb").addEventListener("change", () => { if (currentDoc()) setVerbName($("#rhl-verb").value.toLowerCase()); });
-    $("#rhl-url").addEventListener("input",   () => { if (currentDoc()) setVerbPair("url", $("#rhl-url").value); });
+    $("#rhl-url").addEventListener("input",   () => {
+      if (!currentDoc()) return;
+      setVerbPair("url", $("#rhl-url").value);
+      syncParamsFromUrl();
+    });
   }
 
   document.addEventListener("DOMContentLoaded", async () => {

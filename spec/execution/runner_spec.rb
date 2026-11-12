@@ -32,6 +32,85 @@ RSpec.describe RailsHttpLab::Execution::Runner do
     expect(stub).to have_been_requested
   end
 
+  it "does not duplicate query params that Bruno mirrors in the URL and params:query" do
+    WebMock.stub_request(:get, /example\.com/).to_return(status: 200, body: "")
+
+    doc = parse(<<~BRU)
+      get {
+        url: https://example.com/users?page=1&per_page=2&keep=yes
+        body: none
+        auth: none
+      }
+
+      params:query {
+        page: 1
+        per_page: 2
+        ~debug: true
+      }
+    BRU
+
+    resp = described_class.new(doc).run
+    expect(resp.request[:url]).to eq("https://example.com/users?keep=yes&page=1&per_page=2")
+  end
+
+  it "lets params:query values override the same key in the URL" do
+    WebMock.stub_request(:get, /example\.com/).to_return(status: 200, body: "")
+
+    doc = parse(<<~BRU)
+      get {
+        url: https://example.com/users?page=1
+        body: none
+        auth: none
+      }
+
+      params:query {
+        page: 2
+      }
+    BRU
+
+    resp = described_class.new(doc).run
+    expect(resp.request[:url]).to eq("https://example.com/users?page=2")
+  end
+
+  it "explains unresolved {{vars}} in the URL instead of a generic URI error" do
+    doc = parse(<<~BRU)
+      get {
+        url: {{baseUrl}}/users
+        body: none
+        auth: none
+      }
+    BRU
+
+    resp = described_class.new(doc).run
+    expect(resp.error).to eq("Invalid URL: unresolved variable {{baseUrl}} — select an environment that defines it")
+    expect(resp.request).to be_nil
+  end
+
+  it "sends apikey auth as a query param when placement is queryparams" do
+    stub = WebMock.stub_request(:get, "https://example.com/items")
+      .with(query: { "api_key" => "s3cr3t" })
+      .to_return(status: 200, body: "")
+
+    doc = parse(<<~BRU)
+      get {
+        url: https://example.com/items
+        body: none
+        auth: apikey
+      }
+
+      auth:apikey {
+        key: api_key
+        value: s3cr3t
+        placement: queryparams
+      }
+    BRU
+
+    resp = described_class.new(doc).run
+    expect(resp.status).to eq(200)
+    expect(stub).to have_been_requested
+    expect(resp.request[:headers]).not_to have_key("api_key")
+  end
+
   it "executes POST with json body and bearer auth" do
     stub = WebMock.stub_request(:post, "https://example.com/items")
       .with(

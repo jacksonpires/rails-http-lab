@@ -253,6 +253,7 @@ html, body.rhl-body {
 
 .rhl-response__meta { display: flex; gap: 8px; font-size: 12px; align-items: center; }
 .rhl-response__meta span { padding: 2px 8px; background: var(--rhl-bg-alt); border-radius: 3px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+.rhl-response__meta span:empty { display: none; }
 .rhl-pill { font-weight: 700; }
 .rhl-pill--ok   { background: #DCEEDC !important; color: var(--rhl-success); }
 .rhl-pill--warn { background: #FFE9C7 !important; color: var(--rhl-warn); }

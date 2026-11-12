@@ -27,7 +27,7 @@ There is no lint task and no build step beyond `gem build rails-http-lab.gemspec
 Four layers, each in its own subdirectory under `lib/rails_http_lab/`:
 
 1. **`bruno/`** — Parser + Serializer for the `.bru` format.
-   - `Parser` recognizes two block modes: `:kv` (`key: value` lines, 2-space indent) and `:raw` (opaque body, verbatim). Raw blocks are listed in `Parser::RAW_BLOCK_NAMES` — adding a new raw-block type (e.g. a new `body:*` variant) means updating that constant.
+   - `Parser` recognizes three block modes: `:kv` (`key: value` lines, 2-space indent), `:raw` (opaque body, verbatim) and `:list` (`name [ ... ]`, e.g. the `vars:secret` list Bruno writes in environment files; body kept verbatim, `Block#items` gives the names). Raw blocks are listed in `Parser::RAW_BLOCK_NAMES` — adding a new raw-block type (e.g. a new `body:*` variant) means updating that constant. List blocks are detected by the `[` opener, no allowlist.
    - `Serializer` emits each block as `name {\n ... \n}` separated by a single blank line. Whitespace details — `leading_blank_lines`, `trailing_newline`, exact 2-space indent — are load-bearing for round-trip stability. Don't "tidy" them.
    - `Document` holds an ordered list of `Block`s. KV blocks preserve key order and allow duplicates (stored as `pairs` array, not a hash).
 
@@ -71,6 +71,8 @@ The install generator's `initializer.rb.tt` starts with `require "rails_http_lab
 
 ## Conventions worth knowing
 
+- Bruno mirrors the URL's query string and `params:query` (and Bruno desktop sends only the URL). The frontend keeps them in sync both ways; the runner lets `params:query` keys replace the same keys in the URL rather than appending duplicates. Keep both behaviors.
+- The frontend lazily injects empty blocks when a tab is viewed; `persistableDoc` drops them on save/send unless the block was already on disk. Don't bypass it when adding new write paths.
 - KV pairs whose key starts with `~` are treated as disabled (skipped by the runner when applying headers, query params, form fields). Preserve them through parse/serialize.
 - Bruno multi-line values use either unbalanced braces (e.g. URLs with embedded JSON) or `'''...'''` triple-quoted strings. `Parser#consume_multiline_value` handles both — touch with care and re-run the round-trip suite.
 - `meta` block's `seq` integer drives sidebar ordering **inside folders**; top-level collections are sorted by name regardless of `seq`. `Filesystem#create_folder` writes a `seq` automatically for nested folders.

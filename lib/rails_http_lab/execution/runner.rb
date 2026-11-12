@@ -43,8 +43,15 @@ module RailsHttpLab
         body_kind = verb_block["body"].to_s
         auth_kind = verb_block["auth"].to_s
 
+        unresolved = url.scan(/\{\{\s*([^{}]+?)\s*\}\}/).flatten.uniq
+        unless unresolved.empty?
+          names = unresolved.map { |n| "{{#{n}}}" }.join(", ")
+          raise URI::InvalidURIError,
+                "unresolved variable #{names} — select an environment that defines it"
+        end
+
         uri = URI.parse(url)
-        merge_query!(uri)
+        merge_query!(uri, auth_kind)
 
         klass = VERBS.fetch(verb_block.name)
         request = klass.new(uri.request_uri)
@@ -103,16 +110,42 @@ module RailsHttpLab
         Process.clock_gettime(Process::CLOCK_MONOTONIC)
       end
 
-      def merge_query!(uri)
-        params_block = @doc.block("params:query") || @doc.block("query")
-        return unless params_block&.kv?
+      # Bruno keeps the URL's query string and the `params:query` block in
+      # sync, so the same params usually appear in both. Keys present in the
+      # block (or added by apikey auth) replace the URL's occurrences of those
+      # keys instead of being appended twice; other URL params are kept as-is.
+      def merge_query!(uri, auth_kind)
+        extra = []
 
-        existing = uri.query.to_s
-        extra    = params_block.pairs.reject { |k, _| k.start_with?("~") }.map do |k, v|
-          "#{URI.encode_www_form_component(k)}=#{URI.encode_www_form_component(@resolver.resolve(v.to_s))}"
+        params_block = @doc.block("params:query") || @doc.block("query")
+        if params_block&.kv?
+          params_block.pairs.each do |k, v|
+            next if k.start_with?("~")
+            extra << [k, @resolver.resolve(v.to_s)]
+          end
         end
-        merged = [existing, extra.join("&")].reject(&:empty?).join("&")
-        uri.query = merged unless merged.empty?
+
+        if auth_kind == "apikey" && (auth = @doc.block("auth:apikey")) && auth["placement"].to_s == "queryparams"
+          key = @resolver.resolve(auth["key"].to_s)
+          extra << [key, @resolver.resolve(auth["value"].to_s)] unless key.empty?
+        end
+
+        return if extra.empty?
+
+        overridden = extra.map(&:first)
+        kept = uri.query.to_s.split("&").reject do |part|
+          part.empty? || overridden.include?(query_key(part))
+        end
+        added = extra.map do |k, v|
+          "#{URI.encode_www_form_component(k)}=#{URI.encode_www_form_component(v)}"
+        end
+        uri.query = (kept + added).join("&")
+      end
+
+      def query_key(part)
+        URI.decode_www_form_component(part.split("=", 2).first)
+      rescue ArgumentError
+        part.split("=", 2).first
       end
 
       def apply_headers!(request)
@@ -138,13 +171,8 @@ module RailsHttpLab
           return unless block
           key = @resolver.resolve(block["key"].to_s)
           val = @resolver.resolve(block["value"].to_s)
-          placement = block["placement"].to_s
-          if placement == "queryparams"
-            uri = request.uri || URI.parse("")
-            # placement in query is handled at URL level; skip here
-          else
-            request[key] = val unless key.empty?
-          end
+          # placement "queryparams" is applied to the URL in merge_query!
+          request[key] = val unless key.empty? || block["placement"].to_s == "queryparams"
         end
       end
 

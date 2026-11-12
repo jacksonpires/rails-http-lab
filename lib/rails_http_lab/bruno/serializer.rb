@@ -42,7 +42,8 @@ module RailsHttpLab
       def render_block(block)
         case block.mode
         when :kv  then render_kv(block)
-        when :raw then render_raw(block)
+        when :raw  then render_raw(block)
+        when :list then render_raw(block, open: "[", close: "]")
         end
       end
 
@@ -55,12 +56,12 @@ module RailsHttpLab
         lines
       end
 
-      def render_raw(block)
+      def render_raw(block, open: "{", close: "}")
         body = block.raw.to_s
-        out = +"#{block.name} {\n"
+        out = +"#{block.name} #{open}\n"
         out << body
         out << "\n" unless body.empty? || body.end_with?("\n")
-        out << "}\n"
+        out << "#{close}\n"
         out
       end
     end

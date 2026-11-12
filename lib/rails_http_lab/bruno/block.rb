@@ -1,7 +1,11 @@
 module RailsHttpLab
   module Bruno
     class Block
-      MODES = %i[kv raw].freeze
+      # :kv   — `name {` + `key: value` lines
+      # :raw  — `name {` + opaque body, verbatim
+      # :list — `name [` + one item per line (e.g. Bruno's `vars:secret [`),
+      #         body kept verbatim in `raw` for byte-stable round-trip
+      MODES = %i[kv raw list].freeze
 
       attr_accessor :name, :mode, :pairs, :raw
 
@@ -15,6 +19,13 @@ module RailsHttpLab
 
       def kv?;  mode == :kv;  end
       def raw?; mode == :raw; end
+      def list?; mode == :list; end
+
+      # Item names of a :list block. Bruno separates items with ",\n".
+      def items
+        return [] unless list?
+        raw.to_s.split("\n").map { |l| l.strip.delete_suffix(",").strip }.reject(&:empty?)
+      end
 
       def [](key)
         return nil unless kv?
@@ -35,6 +46,8 @@ module RailsHttpLab
       def to_h
         if kv?
           pairs.to_h
+        elsif list?
+          { items: items }
         else
           { raw: raw }
         end
