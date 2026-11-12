@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `rails-http-lab` is a Rails Engine gem (not an application). It mounts a Bruno-like HTTP request lab inside a host Rails app at `/rails/http-lab`, persisting collections as `.bru` files under `docs/http-lab/`. The defining constraint is **byte-stable round-trip with the Bruno desktop format** — files written by Bruno must parse and re-emit identically (see `spec/bruno/round_trip_spec.rb`). The reference fixture corpus lives under `spec/fixtures/bruno_corpus/` and is **gitignored** — drop a Bruno collection there locally to exercise the round-trip suite; CI/clean checkouts have the spec auto-skip.
 
-Ruby `>= 3.1` required (`mise.toml` pins 3.4.7). Rails `>= 7.0`.
+Ruby `>= 3.1` required (`mise.toml` pins 4.0.9). Rails `>= 7.0`.
 
 ## Commands
 
@@ -15,7 +15,10 @@ bundle install                                 # install deps
 bundle exec rspec                              # full suite (uses spec/dummy as host app)
 bundle exec rspec spec/bruno/round_trip_spec.rb  # the round-trip property tests
 bundle exec rspec spec/path/to_spec.rb:42      # single example by line number
+RAILS_VERSION=7.2 bundle update rails && RAILS_VERSION=7.2 bundle exec rspec  # test against a Rails series
 ```
+
+CI (`.github/workflows/ci.yml`) runs the suite on Ruby 3.1–4.0 × Rails 7.0–8.1 (Rails 8.x excluded on Ruby 3.1). The `Gemfile` reads `RAILS_VERSION` to pin `rails ~> X.Y.0`. Keep the README compatibility table in sync with the CI matrix.
 
 There is no lint task and no build step beyond `gem build rails-http-lab.gemspec`. The engine is exercised via `spec/dummy/`, a minimal Rails app booted by `spec/rails_helper.rb`.
 
