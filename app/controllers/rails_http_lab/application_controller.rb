@@ -39,8 +39,8 @@ module RailsHttpLab
 
     def render_unprocessable(error)
       respond_to do |format|
-        format.json { render json: { error: error.message }, status: :unprocessable_entity }
-        format.any  { head :unprocessable_entity }
+        format.json { render json: { error: error.message }, status: 422 }
+        format.any  { head 422 }
       end
     end
   end

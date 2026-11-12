@@ -111,7 +111,7 @@ RSpec.describe "rails-http-lab API", type: :request do
     it "rejects rename with a slash in the name" do
       post "#{engine_root}/api/folders", params: { path: "Acme", name: "Acme" }, as: :json
       post "#{engine_root}/api/folders/rename", params: { path: "Acme", name: "foo/bar" }, as: :json
-      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response).to have_http_status(422)
     end
   end
 

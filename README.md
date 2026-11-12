@@ -30,6 +30,21 @@ bin/rails g rails_http_lab:install
 
 Visit `http://localhost:3000/rails/http-lab`.
 
+## Compatibility
+
+Requires Ruby `>= 3.1` and Rails `>= 7.0`. Every combination below runs in
+[CI](.github/workflows/ci.yml):
+
+| Ruby \ Rails | 7.0 | 7.1 | 7.2 | 8.0 | 8.1 |
+|--------------|:---:|:---:|:---:|:---:|:---:|
+| **4.0**      | ✅  | ✅  | ✅  | ✅  | ✅  |
+| **3.4**      | ✅  | ✅  | ✅  | ✅  | ✅  |
+| **3.3**      | ✅  | ✅  | ✅  | ✅  | ✅  |
+| **3.2**      | ✅  | ✅  | ✅  | ✅  | ✅  |
+| **3.1**      | ✅  | ✅  | ✅  | —   | —   |
+
+— Rails 8.x itself requires Ruby `>= 3.2`.
+
 ## Configuration
 
 `config/initializers/rails_http_lab.rb`:
@@ -54,6 +69,20 @@ risk if exposed to untrusted users. Defaults:
   refuses to boot otherwise.
 - Bruno `script` and `tests` blocks are **persisted but not executed** to avoid
   arbitrary code execution. Run them in Bruno itself.
+
+## Development
+
+```bash
+bundle install
+bundle exec rspec
+```
+
+To run the suite against a specific Rails series (as CI does), set
+`RAILS_VERSION` before installing:
+
+```bash
+RAILS_VERSION=7.2 bundle update rails && RAILS_VERSION=7.2 bundle exec rspec
+```
 
 ## License
 
