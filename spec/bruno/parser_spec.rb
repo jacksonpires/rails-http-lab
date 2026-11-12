@@ -75,6 +75,34 @@ RSpec.describe RailsHttpLab::Bruno::Parser do
       expect(doc.block("auth:bearer")["token"]).to eq("abc.def.ghi")
     end
 
+    it "parses list blocks such as Bruno's vars:secret and round-trips them" do
+      src = <<~BRU
+        vars {
+          baseUrl: http://localhost:3000
+        }
+
+        vars:secret [
+          apiKey,
+          ~password
+        ]
+      BRU
+
+      doc = described_class.parse(src)
+      secret = doc.block("vars:secret")
+      expect(secret).to be_list
+      expect(secret.items).to eq(%w[apiKey ~password])
+      expect(RailsHttpLab::Bruno::Serializer.dump(doc)).to eq(src)
+    end
+
+    it "round-trips an empty list block" do
+      src = "vars:secret [\n]\n"
+      expect(RailsHttpLab::Bruno::Serializer.dump(described_class.parse(src))).to eq(src)
+    end
+
+    it "rejects unterminated list blocks" do
+      expect { described_class.parse("vars:secret [\n  apiKey\n") }.to raise_error(RailsHttpLab::ParseError)
+    end
+
     it "rejects malformed input" do
       expect { described_class.parse("garbage line\n") }.to raise_error(RailsHttpLab::ParseError)
     end

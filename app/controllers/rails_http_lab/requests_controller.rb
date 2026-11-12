@@ -73,6 +73,8 @@ module RailsHttpLab
         mode = b["mode"]&.to_sym || :kv
         if mode == :raw
           docs << "#{b['name']} {\n#{b['raw']}\n}\n"
+        elsif mode == :list
+          docs << "#{b['name']} [\n#{b['raw']}\n]\n"
         else
           lines = Array(b["pairs"]).map { |k, v| "  #{k}: #{v}" }.join("\n")
           docs << "#{b['name']} {\n#{lines}#{lines.empty? ? '' : "\n"}}\n"
@@ -89,6 +91,8 @@ module RailsHttpLab
         blocks: doc.blocks.map { |b|
           if b.kv?
             { name: b.name, mode: "kv", pairs: b.pairs }
+          elsif b.list?
+            { name: b.name, mode: "list", raw: b.raw }
           else
             { name: b.name, mode: "raw", raw: b.raw }
           end

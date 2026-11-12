@@ -54,6 +54,43 @@ RSpec.describe "rails-http-lab API", type: :request do
     expect(body["status"]).to eq(200)
   end
 
+  context "with a Bruno environment that has secret vars" do
+    let(:env_file) { File.join(RailsHttpLab.config.resolved_storage_path.to_s, "environments", "Local.bru") }
+    let(:env_source) do
+      <<~BRU
+        vars {
+          baseUrl: http://localhost:3000
+        }
+
+        vars:secret [
+          apiKey
+        ]
+      BRU
+    end
+
+    before do
+      FileUtils.mkdir_p(File.dirname(env_file))
+      File.write(env_file, env_source)
+    end
+
+    it "POST /api/run resolves {{vars}} from it" do
+      WebMock.stub_request(:get, "http://localhost:3000/ping").to_return(status: 200, body: "ok")
+
+      src = "get {\n  url: {{baseUrl}}/ping\n  body: none\n  auth: none\n}\n"
+      post "#{engine_root}/api/run", params: { source: src, environment: "Local" }, as: :json
+      body = JSON.parse(response.body)
+      expect(body["error"]).to be_nil
+      expect(body["status"]).to eq(200)
+    end
+
+    it "PUT /api/environments/:name keeps the vars:secret block" do
+      put "#{engine_root}/api/environments/Local",
+          params: { vars: [{ key: "baseUrl", value: "http://localhost:4000" }] }, as: :json
+      expect(response).to have_http_status(:ok)
+      expect(File.read(env_file)).to eq(env_source.sub("3000", "4000"))
+    end
+  end
+
   it "POST /api/run executes the saved request" do
     WebMock.stub_request(:get, "https://example.com/ping").to_return(status: 200, body: '{"ok":true}')
 
