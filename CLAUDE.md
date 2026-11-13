@@ -8,6 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Ruby `>= 3.1` required (`mise.toml` pins 4.0.9). Rails `>= 7.0`.
 
+## Knowledge base (OKF)
+
+**OKF (Open Knowledge Format) is the system of record for everything about this gem** — knowledge, decisions and documentation are recorded in the project's OKF bundle at `.okf/` (use the `okf` skill; `okf validate .okf && okf lint .okf` must stay clean). When you learn something non-obvious, make or change a design decision, or add/alter documented behavior, capture or update it in the OKF bundle as part of the same change. Before answering "what do we know about X?" or "why is X like this?", consult the bundle first.
+
 ## Commands
 
 ```bash
@@ -47,11 +51,12 @@ Four layers, each in its own subdirectory under `lib/rails_http_lab/`:
    - `requests#show|update|create|destroy`, `requests#rename` (POST)
    - `environments#index|show|update`
    - `runs#create`
-   - Vanilla-JS frontend in `app/assets/javascripts/rails_http_lab/application.js` talks to that API. Sidebar maintains `state.expandedFolders` (a Set of open folder paths) and preserves scroll across re-renders, so `loadTree()` after a save/create doesn't reset the user's place.
+   - Vanilla-JS frontend in `app/assets/javascripts/rails_http_lab/application.js` talks to that API. Sidebar maintains `state.expandedFolders` (a Set of open folder paths) and preserves scroll across re-renders, so `loadTree()` after a save/create doesn't reset the user's place. All API calls go through the `api()` helper, which sends `X-CSRF-Token` (from the layout's `csrf_meta_tags`) on every non-GET/HEAD request — body-less `DELETE`s included. Don't call `fetch` directly for writes.
 
 ### Security model (do not weaken without discussion)
 
 - `ApplicationController#guard_environment!` returns 404 unless `Rails.env` is in `config.enabled_envs` (default `[:development]`).
+- **CSRF is verified on every mutating endpoint.** `ApplicationController` declares `protect_from_forgery with: :exception` *after* `before_action :guard_environment!` (so a disabled engine stays a plain 404 even for a token-less POST), and rescues `ActionController::InvalidAuthenticityToken` → 422 JSON. **Never add `skip_forgery_protection`** to an engine controller: without it a cross-site form POST from any page could make `/api/run` fire requests into the developer's network or write `.bru` files. `spec/requests/csrf_spec.rb` enumerates the engine's non-GET routes and fails if any accepts a request without a token.
 - `Engine`'s `after_initialize` **refuses to boot** if `:production` is in `enabled_envs` without a configured `authenticator` callable. Don't add fallbacks that bypass this.
 - The runner makes requests from the Rails server — it can reach internal services. That's the point, but it's also why the auth gate matters.
 - `ApplicationController` rescues `RailsHttpLab::Error` (base class) → 422. Subclass-specific rescues (`NotFoundError`, `OutsideStorageError`, `ParseError`) come first and take priority — don't reorder.
@@ -65,7 +70,7 @@ The install generator's `initializer.rb.tt` starts with `require "rails_http_lab
 ## Test conventions
 
 - `spec/spec_helper.rb` loads the library standalone (no Rails) — used by `bruno/`, `storage/`, `execution/` unit specs.
-- `spec/rails_helper.rb` boots `spec/dummy/` and is required by `type: :request` and `type: :system` specs. It rewrites `config.storage_path` to a per-example tmpdir and adds `:test` to `enabled_envs` — call `RailsHttpLab.reset_configuration!` if a spec needs to override further.
+- `spec/rails_helper.rb` boots `spec/dummy/` and is required by `type: :request` and `type: :system` specs. It rewrites `config.storage_path` to a per-example tmpdir and adds `:test` to `enabled_envs` — call `RailsHttpLab.reset_configuration!` if a spec needs to override further. It also forces `ActionController::Base.allow_forgery_protection = true` for request specs, so every POST/PUT/DELETE must pass `headers: csrf_headers` (helper that loads the SPA shell and returns its real CSRF token).
 - Corpus-dependent specs (`spec/bruno/round_trip_spec.rb`, the "Bruno corpus fixture" context in `spec/storage/tree_spec.rb`) `skip` cleanly when `spec/fixtures/bruno_corpus/` is empty. On a clean checkout you'll see ~4 pending; that's expected. To run them locally, populate the dir with a Bruno collection — any `.bru` files will be picked up automatically. If a fixture fails round-trip, the parser/serializer is wrong; fix it there, don't edit the fixture.
 - `webmock` is loaded; outbound HTTP in tests must be stubbed.
 
