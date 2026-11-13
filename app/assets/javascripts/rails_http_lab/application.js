@@ -143,11 +143,13 @@
     return el;
   };
 
+  // Every non-GET/HEAD call carries the CSRF token — including body-less ones
+  // like DELETE — because the engine verifies it on all mutating endpoints.
   async function api(method, path, body) {
     const opts = { method, headers: { "Accept": "application/json" } };
+    if (!/^(GET|HEAD)$/i.test(method)) opts.headers["X-CSRF-Token"] = CSRF;
     if (body !== undefined) {
       opts.headers["Content-Type"] = "application/json";
-      opts.headers["X-CSRF-Token"] = CSRF;
       opts.body = JSON.stringify(body);
     }
     const res = await fetch(API(path), opts);

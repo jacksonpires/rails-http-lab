@@ -1,7 +1,5 @@
 module RailsHttpLab
   class CollectionsController < ApplicationController
-    skip_forgery_protection only: [:create]
-
     def tree
       RailsHttpLab::Storage::Filesystem.new.ensure_root!
       render json: RailsHttpLab::Storage::Tree.new.build
