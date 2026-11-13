@@ -26,7 +26,7 @@ RSpec.describe "rails-http-lab API", type: :request do
       }
     BRU
 
-    put "#{engine_root}/api/requests/MyAPI/ping.bru", params: { source: bru_source }, as: :json
+    put "#{engine_root}/api/requests/MyAPI/ping.bru", params: { source: bru_source }, as: :json, headers: csrf_headers
     expect(response).to have_http_status(:ok)
 
     body = JSON.parse(response.body)
@@ -44,11 +44,11 @@ RSpec.describe "rails-http-lab API", type: :request do
     WebMock.stub_request(:get, "http://localhost:3000/v0/buyer_fields").to_return(status: 200, body: "ok")
 
     put "#{engine_root}/api/environments/Local",
-        params: { vars: [{ key: "baseUrl", value: "http://localhost:3000" }] }, as: :json
+        params: { vars: [{ key: "baseUrl", value: "http://localhost:3000" }] }, as: :json, headers: csrf_headers
     expect(response).to have_http_status(:ok)
 
     src = "get {\n  url: {{baseUrl}}/v0/buyer_fields\n  body: none\n  auth: none\n}\n"
-    post "#{engine_root}/api/run", params: { source: src, environment: "Local" }, as: :json
+    post "#{engine_root}/api/run", params: { source: src, environment: "Local" }, as: :json, headers: csrf_headers
     body = JSON.parse(response.body)
     expect(body["error"]).to be_nil
     expect(body["status"]).to eq(200)
@@ -77,7 +77,7 @@ RSpec.describe "rails-http-lab API", type: :request do
       WebMock.stub_request(:get, "http://localhost:3000/ping").to_return(status: 200, body: "ok")
 
       src = "get {\n  url: {{baseUrl}}/ping\n  body: none\n  auth: none\n}\n"
-      post "#{engine_root}/api/run", params: { source: src, environment: "Local" }, as: :json
+      post "#{engine_root}/api/run", params: { source: src, environment: "Local" }, as: :json, headers: csrf_headers
       body = JSON.parse(response.body)
       expect(body["error"]).to be_nil
       expect(body["status"]).to eq(200)
@@ -85,7 +85,7 @@ RSpec.describe "rails-http-lab API", type: :request do
 
     it "PUT /api/environments/:name keeps the vars:secret block" do
       put "#{engine_root}/api/environments/Local",
-          params: { vars: [{ key: "baseUrl", value: "http://localhost:4000" }] }, as: :json
+          params: { vars: [{ key: "baseUrl", value: "http://localhost:4000" }] }, as: :json, headers: csrf_headers
       expect(response).to have_http_status(:ok)
       expect(File.read(env_file)).to eq(env_source.sub("3000", "4000"))
     end
@@ -101,9 +101,9 @@ RSpec.describe "rails-http-lab API", type: :request do
         auth: none
       }
     BRU
-    put "#{engine_root}/api/requests/ping.bru", params: { source: bru }, as: :json
+    put "#{engine_root}/api/requests/ping.bru", params: { source: bru }, as: :json, headers: csrf_headers
 
-    post "#{engine_root}/api/run", params: { path: "ping.bru" }, as: :json
+    post "#{engine_root}/api/run", params: { path: "ping.bru" }, as: :json, headers: csrf_headers
     expect(response).to have_http_status(:ok)
     body = JSON.parse(response.body)
     expect(body["status"]).to eq(200)
@@ -118,10 +118,10 @@ RSpec.describe "rails-http-lab API", type: :request do
 
   describe "folder rename/delete" do
     it "POST /api/folders/rename moves the directory and updates folder.bru meta.name" do
-      post "#{engine_root}/api/folders", params: { path: "Acme", name: "Acme" }, as: :json
+      post "#{engine_root}/api/folders", params: { path: "Acme", name: "Acme" }, as: :json, headers: csrf_headers
       expect(response).to have_http_status(:ok)
 
-      post "#{engine_root}/api/folders/rename", params: { path: "Acme", name: "Globex" }, as: :json
+      post "#{engine_root}/api/folders/rename", params: { path: "Acme", name: "Globex" }, as: :json, headers: csrf_headers
       expect(response).to have_http_status(:ok)
       expect(JSON.parse(response.body)["path"]).to eq("Globex")
 
@@ -132,12 +132,12 @@ RSpec.describe "rails-http-lab API", type: :request do
     end
 
     it "DELETE /api/folders/:path removes the folder and its contents" do
-      post "#{engine_root}/api/folders", params: { path: "Acme", name: "Acme" }, as: :json
+      post "#{engine_root}/api/folders", params: { path: "Acme", name: "Acme" }, as: :json, headers: csrf_headers
       put  "#{engine_root}/api/requests/Acme/ping.bru", params: {
         source: "meta {\n  name: Ping\n  type: http\n  seq: 1\n}\n\nget {\n  url: https://example.com\n  body: none\n  auth: none\n}\n"
-      }, as: :json
+      }, as: :json, headers: csrf_headers
 
-      delete "#{engine_root}/api/folders/Acme"
+      delete "#{engine_root}/api/folders/Acme", headers: csrf_headers
       expect(response).to have_http_status(:no_content)
 
       get "#{engine_root}/api/tree"
@@ -146,8 +146,8 @@ RSpec.describe "rails-http-lab API", type: :request do
     end
 
     it "rejects rename with a slash in the name" do
-      post "#{engine_root}/api/folders", params: { path: "Acme", name: "Acme" }, as: :json
-      post "#{engine_root}/api/folders/rename", params: { path: "Acme", name: "foo/bar" }, as: :json
+      post "#{engine_root}/api/folders", params: { path: "Acme", name: "Acme" }, as: :json, headers: csrf_headers
+      post "#{engine_root}/api/folders/rename", params: { path: "Acme", name: "foo/bar" }, as: :json, headers: csrf_headers
       expect(response).to have_http_status(422)
     end
   end
@@ -156,9 +156,9 @@ RSpec.describe "rails-http-lab API", type: :request do
     it "POST /api/requests/rename moves the file and updates meta.name" do
       put "#{engine_root}/api/requests/Acme/ping.bru", params: {
         source: "meta {\n  name: Ping\n  type: http\n  seq: 1\n}\n\nget {\n  url: https://example.com\n  body: none\n  auth: none\n}\n"
-      }, as: :json
+      }, as: :json, headers: csrf_headers
 
-      post "#{engine_root}/api/requests/rename", params: { path: "Acme/ping.bru", name: "pong" }, as: :json
+      post "#{engine_root}/api/requests/rename", params: { path: "Acme/ping.bru", name: "pong" }, as: :json, headers: csrf_headers
       expect(response).to have_http_status(:ok)
       body = JSON.parse(response.body)
       expect(body["path"]).to eq("Acme/pong.bru")
@@ -174,7 +174,7 @@ RSpec.describe "rails-http-lab API", type: :request do
 
   it "top-level collections are returned in alphabetical order" do
     %w[Zebra Apple Mango].each do |name|
-      post "#{engine_root}/api/folders", params: { path: name, name: name }, as: :json
+      post "#{engine_root}/api/folders", params: { path: name, name: name }, as: :json, headers: csrf_headers
     end
 
     get "#{engine_root}/api/tree"

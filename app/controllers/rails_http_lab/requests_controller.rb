@@ -1,7 +1,5 @@
 module RailsHttpLab
   class RequestsController < ApplicationController
-    skip_forgery_protection only: [:create, :update, :destroy, :rename]
-
     def show
       doc = storage.read_bru(path_param)
       render json: serialize(doc, path_param)

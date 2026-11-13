@@ -1,7 +1,5 @@
 module RailsHttpLab
   class EnvironmentsController < ApplicationController
-    skip_forgery_protection only: [:update]
-
     def index
       render json: { environments: RailsHttpLab::Storage::Tree.new.build[:environments] }
     end

@@ -1,7 +1,5 @@
 module RailsHttpLab
   class RunsController < ApplicationController
-    skip_forgery_protection only: [:create]
-
     def create
       doc = build_document
       resolver = build_resolver

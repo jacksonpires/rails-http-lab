@@ -1,7 +1,5 @@
 module RailsHttpLab
   class FoldersController < ApplicationController
-    skip_forgery_protection only: [:create, :rename, :destroy]
-
     def create
       path = params.require(:path).to_s
       RailsHttpLab::Storage::Filesystem.new.create_folder(path, display_name: params[:name])
