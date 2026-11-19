@@ -30,3 +30,4 @@ RAILS_VERSION=7.2 bundle update rails && RAILS_VERSION=7.2 bundle exec rspec
 
 * The README compatibility table must stay in sync with the CI matrix.[^readme]
 * Code must work on the oldest pair (Ruby 3.1 / Rails 7.0 / Rack 2). One example is the numeric 422 in [error mapping](/engine/error-mapping.md).
+* Local development uses the latest stable Ruby, pinned in `.ruby-version` (rbenv) and `mise.toml` — currently `4.0.10`. CI's `"4.0"` entry lets `ruby/setup-ruby` resolve the newest 4.0.x patch, so a patch bump only touches those two files.

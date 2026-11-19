@@ -31,7 +31,7 @@ jobs:
       # Read by the Gemfile to pin `rails` to "~> <version>.0"
       RAILS_VERSION: ${{ matrix.rails }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: ruby/setup-ruby@v1
         with:

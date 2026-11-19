@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `rails-http-lab` is a Rails Engine gem (not an application). It mounts a Bruno-like HTTP request lab inside a host Rails app at `/rails/http-lab`, persisting collections as `.bru` files under `docs/http-lab/`. The defining constraint is **byte-stable round-trip with the Bruno desktop format** — files written by Bruno must parse and re-emit identically (see `spec/bruno/round_trip_spec.rb`). The reference fixture corpus lives under `spec/fixtures/bruno_corpus/` and is **gitignored** — drop a Bruno collection there locally to exercise the round-trip suite; CI/clean checkouts have the spec auto-skip.
 
-Ruby `>= 3.1` required (`mise.toml` pins 4.0.9). Rails `>= 7.0`.
+Ruby `>= 3.1` required (`.ruby-version` and `mise.toml` pin 4.0.10). Rails `>= 7.0`.
 
 ## Knowledge base (OKF)
 
